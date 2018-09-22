@@ -1,0 +1,124 @@
+
+######################################################
+# Git helper commands
+######################################################
+
+function gitN() {
+    getLineGen gitC git "$@"
+}
+
+function getLineGen() {
+    local display_cmd=$1
+    local exec_cmd=$2
+    if [ $# -lt 3 ]; then
+        displayLine $display_cmd
+    else
+        local length="$(($#-3))"
+        local cmd_args="${@:3:length}"
+        local last_arg="${!#}"
+        local ub=$last_arg
+        local lb=$ub
+
+        case $last_arg in
+            *\ * )
+                ub=$(echo $last_arg | awk '{print $2}')
+                lb=$(echo $last_arg | awk '{print $1}')
+        esac
+        for ((line_num=$ub; line_num>=$lb; line_num--)); do
+            local line_name=$(getLine $display_cmd ${line_num})
+            info_log "Executing \"$exec_cmd $cmd_args\" for file \"$line_name\""
+            exec "$exec_cmd $cmd_args $line_name"
+        done
+        lineSeparator
+        #displayLine $display_cmd
+    fi
+}
+
+function gitBHN() {
+    getLineGen gitBH "git checkout" "$@"
+}
+
+function gitRN() {
+    getLineGen gitC gitR "$@"
+}
+
+function gitR() {
+    local re='^[0-9]+$'
+    local line_num="$1"
+    local fileName
+    [[ $line_num =~ $re ]] && fileName="$(gitFile $line_num)" || fileName=$line_num
+    git diff "$fileName"
+    info_log "Do you want to commit changes for $fileName? (y/n)"
+    read accept
+    if [ "$accept" == "y" ]; then
+        git add "$fileName"
+    fi
+}
+
+function gitFile() {
+    echo "$(getLine gitC $1)"
+}
+
+
+######################################################
+# Miscellaneous git helper commands
+######################################################
+
+
+function getLine() {
+    local length="$(($#-1))"
+    local command="${@:1:length}"
+    local line_num="${!#}"
+
+    displayLine "$command" | sed -n "${line_num}p" | awk '{print $NF}'
+}
+function elc() {
+    exec $LC
+}
+
+function storeCommand() {
+    info_log "STORING COMMAND $@"
+    echo "LC=\"$@\"" > $HOME/.cli
+    source ~/.cli
+}
+
+function lineSeparator() {
+    echo
+    echo =====================================================================================================================================
+    echo
+}
+
+function displayLine() {
+    exec "$@" |sed -e /^$/d | nl -s ') ' | more -F
+    if [[ "$@" != "elc" ]]; then
+        storeCommand $@
+    fi
+}
+
+
+function showLineN() {
+    local length="$(($#-1))"
+    local args="${@:1:length}"
+    local line_num="${!#}"
+    info_log $line_num
+    local num_regex='^[0-9]+$'
+    if [[ $line_num =~ $num_regex ]]; then
+        line_name=$(getLine $args ${line_num})
+        info_log "Executing \"$args\" for file \"$line_name\""
+        $args $line_name
+        lineSeparator
+        displayLine $args
+    else
+        getLine $args $line_num
+    fi
+}
+
+
+function gitC() {
+     git status |awk '/Changes not staged for commit:|Unmerged paths:/,/Untracked files:/' | grep -o "them:.*\|us:.*\|deleted:.*\|modified:.*" | awk '{print $1"\t"$2}'
+}
+
+
+function gitBH() {
+    git reflog | grep checkout | awk '{print $NF}'
+}
