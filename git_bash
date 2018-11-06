@@ -7,6 +7,10 @@ function gitN() {
     getLineGen gitC git "$@"
 }
 
+function gitUN() {
+    getLineGen gitU $1 "${@:2}"
+}
+
 function getLineGen() {
     local display_cmd=$1
     local exec_cmd=$2
@@ -18,20 +22,25 @@ function getLineGen() {
         local last_arg="${!#}"
         local ub=$last_arg
         local lb=$ub
-
         case $last_arg in
             *\ * )
-                ub=$(echo $last_arg | awk '{print $2}')
-                lb=$(echo $last_arg | awk '{print $1}')
+                read lb ub < <(echo $last_arg) 
         esac
         for ((line_num=$ub; line_num>=$lb; line_num--)); do
             local line_name=$(getLine $display_cmd ${line_num})
-            info_log "Executing \"$exec_cmd $cmd_args\" for file \"$line_name\""
+            info_log "Executing $exec_cmd with arguments $cmd_args for $line_name"
             exec "$exec_cmd $cmd_args $line_name"
         done
-        lineSeparator
+        #lineSeparator
         #displayLine $display_cmd
     fi
+}
+
+function displayLineGen() {
+    local length="$(($#-1))"
+    local command=$1
+    local line_num=$2
+    getLineGen "$command" echo $line_num 
 }
 
 function gitBHN() {
@@ -59,6 +68,9 @@ function gitFile() {
     echo "$(getLine gitC $1)"
 }
 
+function gitRecentFileChanges() {
+    git log --name-status -$1 $2
+}
 
 ######################################################
 # Miscellaneous git helper commands
@@ -69,16 +81,17 @@ function getLine() {
     local length="$(($#-1))"
     local command="${@:1:length}"
     local line_num="${!#}"
-
-    displayLine "$command" | sed -n "${line_num}p" | awk '{print $NF}'
+    LB=${LB:-"LAST"}
+    UB=${UB:-"LAST"}
+    displayLine "$command" | sed -n "${line_num}p" | awk -v lb=$LB -v ub=$UB '{ for(i=(lb=="LAST"?NF:lb); i<=(ub=="LAST"?NF:ub); i++) printf "%s",$i (i==NF?ORS:OFS) }'
 }
 function elc() {
     exec $LC
 }
 
 function storeCommand() {
-    info_log "STORING COMMAND $@"
-    echo "LC=\"$@\"" > $HOME/.cli
+    info_log "STORING COMMAND \"$*\""
+    echo "LC=\"$*\"" > $HOME/.cli
     source ~/.cli
 }
 
@@ -96,28 +109,13 @@ function displayLine() {
 }
 
 
-function showLineN() {
-    local length="$(($#-1))"
-    local args="${@:1:length}"
-    local line_num="${!#}"
-    info_log $line_num
-    local num_regex='^[0-9]+$'
-    if [[ $line_num =~ $num_regex ]]; then
-        line_name=$(getLine $args ${line_num})
-        info_log "Executing \"$args\" for file \"$line_name\""
-        $args $line_name
-        lineSeparator
-        displayLine $args
-    else
-        getLine $args $line_num
-    fi
-}
-
-
 function gitC() {
      git status |awk '/Changes not staged for commit:|Unmerged paths:/,/Untracked files:/' | grep -o "them:.*\|us:.*\|deleted:.*\|modified:.*" | awk '{print $1"\t"$2}'
 }
 
+function gitU() {
+     git status |awk '/nothing added to commit but untracked/{seen=0} seen{print $1} /what will be committed/{seen=1} '
+}
 
 function gitBH() {
     git reflog | grep checkout | awk '{print $NF}'
