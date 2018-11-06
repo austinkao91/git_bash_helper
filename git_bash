@@ -76,6 +76,9 @@ function gitRecentFileChanges() {
 # Miscellaneous git helper commands
 ######################################################
 
+function findN() {
+    getLineGen "find . -iname $1" vim $2
+}
 
 function getLine() {
     local length="$(($#-1))"
