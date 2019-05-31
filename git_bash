@@ -23,10 +23,15 @@ function getLineGen() {
         local ub=$last_arg
         local lb=$ub
         case $last_arg in
+			"all")
+				lb=1
+				ub=$(displayLine $display_cmd | grep -e '^\s*[0-9]\+)' | tail -n 1 | awk '{print $1}' | tr -d ')')
+				;;
             *\ * )
                 read lb ub < <(echo $last_arg) 
         esac
-        for ((line_num=$ub; line_num>=$lb; line_num--)); do
+        info_log "UB=$ub LB=$lb"
+		for ((line_num=$ub; line_num>=$lb; line_num--)); do
             local line_name=$(getLine $display_cmd ${line_num})
             info_log "Executing $exec_cmd with arguments $cmd_args for $line_name"
             exec "$exec_cmd $cmd_args $line_name"
@@ -57,11 +62,15 @@ function gitR() {
     local fileName
     [[ $line_num =~ $re ]] && fileName="$(gitFile $line_num)" || fileName=$line_num
     git diff "$fileName"
-    info_log "Do you want to commit changes for $fileName? (y/n)"
+    info_log "Do you want to commit changes for $fileName (y/n), discard (d), or edit file (o)?"
     read accept
     if [ "$accept" == "y" ]; then
         git add "$fileName"
-    fi
+    elif [ "$accept" == "d" ]; then
+		git checkout -- "$fileName"
+	elif [ "$accept" == "o" ]; then
+		vim "$fileName"
+	fi
 }
 
 function gitFile() {
