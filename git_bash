@@ -61,14 +61,14 @@ function gitR() {
     local line_num="$1"
     local fileName
     [[ $line_num =~ $re ]] && fileName="$(gitFile $line_num)" || fileName=$line_num
-    git diff "$fileName"
-    info_log "Do you want to commit changes for $fileName (y/n), discard (d), or edit file (o)?"
+    git diff -w "$fileName"
+    info_log "Do you want to commit changes for $fileName (y/n), discard (d), or edit file (e)?"
     read accept
     if [ "$accept" == "y" ]; then
         git add "$fileName"
     elif [ "$accept" == "d" ]; then
 		git checkout -- "$fileName"
-	elif [ "$accept" == "o" ]; then
+	elif [ "$accept" == "e" ]; then
 		vim "$fileName"
 	fi
 }
@@ -97,15 +97,6 @@ function getLine() {
     UB=${UB:-"LAST"}
     displayLine "$command" | sed -n "${line_num}p" | awk -v lb=$LB -v ub=$UB '{ for(i=(lb=="LAST"?NF:lb); i<=(ub=="LAST"?NF:ub); i++) printf "%s",$i (i==NF?ORS:OFS) }'
 }
-function elc() {
-    exec $LC
-}
-
-function storeCommand() {
-    info_log "STORING COMMAND \"$*\""
-    echo "LC=\"$*\"" > $HOME/.cli
-    source ~/.cli
-}
 
 function lineSeparator() {
     echo
@@ -115,9 +106,6 @@ function lineSeparator() {
 
 function displayLine() {
     exec "$@" |sed -e /^$/d | nl -s ') ' | more -F
-    if [[ "$@" != "elc" ]]; then
-        storeCommand $@
-    fi
 }
 
 
@@ -126,11 +114,18 @@ function gitC() {
 }
 
 function gitU() {
-     git status |awk '/nothing added to commit but untracked/{seen=0} seen{print $1} /what will be committed/{seen=1} '
+     git status |awk -F ' *, *' '/nothing added to commit but untracked/{seen=0} seen{gsub(/^[[:space:]]+|[[:space:]]+$/,"",$0);print $0} /what will be committed/{seen=1} ' 
 }
 
 function gitBH() {
     git reflog | grep checkout | awk '{print $NF}'
+}
+
+function gitB() {
+	git branch -a
+}
+function gitBN() {
+	getLineGen gitB "git checkout" "$@"
 }
 
 function exec() {
