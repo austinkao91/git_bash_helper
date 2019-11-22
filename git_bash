@@ -3,12 +3,13 @@
 # Git helper commands
 ######################################################
 
+
 function gitN() {
     getLineGen gitC git "$@"
 }
 
 function findN() {
-	getLineGen "find . -iname '$1'" vim "${@:2}"
+	getLineGen "find . -iname '$1'" vim "$2"
 }
 
 function gitUN() {
@@ -35,7 +36,6 @@ function getLineGen() {
             *\ * )
                 read lb ub < <(echo $last_arg) 
         esac
-        info_log "UB=$ub LB=$lb"
 		for ((line_num=$ub; line_num>=$lb; line_num--)); do
             local line_name=$(getLine $display_cmd ${line_num})
             info_log "Executing $exec_cmd with arguments $cmd_args for $line_name"
