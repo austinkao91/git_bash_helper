@@ -7,6 +7,10 @@ function gitN() {
     getLineGen gitC git "$@"
 }
 
+function findN() {
+	getLineGen "find . -iname '$1'" vim "${@:2}"
+}
+
 function gitUN() {
     getLineGen gitU $1 "${@:2}"
 }
@@ -22,6 +26,7 @@ function getLineGen() {
         local last_arg="${!#}"
         local ub=$last_arg
         local lb=$ub
+		#TODO: cache the result calculated here from display_cmd... especially when display_cmd can be expensive
         case $last_arg in
 			"all")
 				lb=1
@@ -61,16 +66,21 @@ function gitR() {
     local line_num="$1"
     local fileName
     [[ $line_num =~ $re ]] && fileName="$(gitFile $line_num)" || fileName=$line_num
-    git diff -w "$fileName"
-    info_log "Do you want to stage changes for $fileName (y/n), discard (d), or edit file (e)?"
-    read accept
-    if [ "$accept" == "y" ]; then
-        git add "$fileName"
-    elif [ "$accept" == "d" ]; then
-		git checkout -- "$fileName"
-	elif [ "$accept" == "e" ]; then
-		vim "$fileName"
-	fi
+    local cont=true
+	while $cont; do
+		git diff -w "$fileName"
+    	info_log "Do you want to stage changes for $fileName (y/n), discard (d), or edit file (e)?"
+    	read accept
+		cont=false
+    	if [ "$accept" == "y" ]; then
+        	git add "$fileName"
+    	elif [ "$accept" == "d" ]; then
+			git checkout -- "$fileName"
+		elif [ "$accept" == "e" ]; then
+			vim "$fileName"
+			cont=true
+		fi
+	done
 }
 
 function gitFile() {
